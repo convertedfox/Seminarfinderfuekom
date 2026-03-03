@@ -1,13 +1,19 @@
-# Seminarfinder-Chatbot (Streamlit)
+# Seminarfinder-Chatbot (Streamlit + LLM API)
 
-Diese Streamlit-App hilft Studierenden, im Seminar-Katalog passende Veranstaltungen zu finden.
+Diese App berät Studierende bei der Seminarwahl mit einem LLM und nutzt den Seminar-Katalog als Wissensbasis.
 
-## Features
+## Verhalten
 
-- Chat-Interface mit `st.chat_input` / `st.chat_message`
-- Wissensbasis aus Markdown (URL oder Datei-Upload)
-- Semantische Suche via TF-IDF + Cosine Similarity
-- Antwort mit relevanten Katalogausschnitten und Empfehlung
+- Der Katalog wird **immer automatisch** aus `CATALOG_URL` geladen.
+- Der Chat läuft über eine OpenAI-kompatible Chat-Completions-API.
+- Antworten sollen sich auf den Katalog stützen.
+
+## Umgebungsvariablen
+
+- `OPENAI_API_KEY` (Pflicht)
+- `OPENAI_MODEL` (optional, Default: `gpt-4o-mini`)
+- `OPENAI_BASE_URL` (optional, Default: `https://api.openai.com/v1`)
+- `CATALOG_URL` (optional, Default ist die vorgegebene Katalog-URL)
 
 ## Lokal starten
 
@@ -15,17 +21,17 @@ Diese Streamlit-App hilft Studierenden, im Seminar-Katalog passende Veranstaltun
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+export OPENAI_API_KEY="..."
 streamlit run app.py
 ```
 
 ## Streamlit Cloud (streamlit.io)
 
-1. Repository nach GitHub pushen.
-2. Auf Streamlit Cloud neues App-Deployment erstellen.
-3. Main file: `app.py`
-4. Optionales Secret setzen:
-   - `CATALOG_URL`: Standard-URL des Katalogs.
+In den App-Secrets setzen:
 
-## Hinweise zur Katalog-URL
-
-Die App lädt bei URL-Nutzung den Inhalt per HTTP-Request. Falls die Quelle eine besondere Authentifizierung oder clientseitige Entschlüsselung benötigt, nutze stattdessen den Datei-Upload in der Sidebar.
+```toml
+OPENAI_API_KEY = "..."
+OPENAI_MODEL = "gpt-4o-mini"
+OPENAI_BASE_URL = "https://api.openai.com/v1"
+CATALOG_URL = "https://share.note.sx/2bfsuvcx#69oXW5Jp6sHy9PL05gRKQFyEVyjku5+VMjkVk96vQwo"
+```
