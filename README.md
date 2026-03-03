@@ -46,3 +46,13 @@ Die Implementierung folgt dem von dir gezeigten Muster:
 - `Authorization: Bearer <api_key>`
 - `POST` auf `https://routellm.abacus.ai/v1/chat/completions`
 - optionales Streaming via `data: ...` Zeilen und `[DONE]`
+
+## Troubleshooting: 400 Bad Request
+
+Wenn `400 Bad Request` von Abacus kommt, sind häufige Ursachen:
+
+- Modellname nicht verfügbar/falsch geschrieben
+- Payload zu groß
+- Ungültige Parameterkombination
+
+Die App reduziert deshalb den Katalogkontext automatisch auf relevante Abschnitte.
