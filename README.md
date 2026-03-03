@@ -13,7 +13,7 @@ Diese App berät Studierende bei der Seminarwahl mit einem LLM über **Abacus AI
 - `ABACUS_API_KEY` (Pflicht)
   - Fallback: `OPENAI_API_KEY`
 - `ABACUS_API_URL` (optional, Default: `https://routellm.abacus.ai/v1/chat/completions`)
-- `ABACUS_MODEL` (optional, Default: `gpt-5`)
+- `ABACUS_MODEL` (optional, Default: `Qwen/Qwen2.5-72B-Instruct`)
 - `ABACUS_STREAM` (optional, `true`/`false`, Default: `false`)
 - `CATALOG_URL` (optional, Default ist die vorgegebene Katalog-URL)
 
@@ -34,7 +34,7 @@ In den App-Secrets setzen:
 ```toml
 ABACUS_API_KEY = "..."
 ABACUS_API_URL = "https://routellm.abacus.ai/v1/chat/completions"
-ABACUS_MODEL = "gpt-5"
+ABACUS_MODEL = "Qwen/Qwen2.5-72B-Instruct"
 ABACUS_STREAM = "false"
 CATALOG_URL = "https://share.note.sx/2bfsuvcx#69oXW5Jp6sHy9PL05gRKQFyEVyjku5+VMjkVk96vQwo"
 ```
@@ -46,3 +46,18 @@ Die Implementierung folgt dem von dir gezeigten Muster:
 - `Authorization: Bearer <api_key>`
 - `POST` auf `https://routellm.abacus.ai/v1/chat/completions`
 - optionales Streaming via `data: ...` Zeilen und `[DONE]`
+
+## Troubleshooting: 400 Bad Request
+
+Wenn `400 Bad Request` von Abacus kommt, sind häufige Ursachen:
+
+- Modellname nicht verfügbar/falsch geschrieben
+- Payload zu groß
+- Ungültige Parameterkombination
+
+Die App reduziert deshalb den Katalogkontext automatisch auf relevante Abschnitte.
+
+
+## Modell-Hinweis (Qwen)
+
+Die Request-Struktur ist bewusst nah an deinem Abacus-Beispiel gehalten (`model`, `messages`, `stream`). Zusätzliche Parameter wie `temperature` werden nicht mitgesendet, um 400-Fehler bei strengeren Modell-Validierungen zu vermeiden.

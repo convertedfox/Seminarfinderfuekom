@@ -1,14 +1,16 @@
 import json
 import os
+import re
 from functools import lru_cache
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import requests
 import streamlit as st
 
 DEFAULT_CATALOG_URL = "https://share.note.sx/2bfsuvcx#69oXW5Jp6sHy9PL05gRKQFyEVyjku5+VMjkVk96vQwo"
 DEFAULT_ABACUS_ENDPOINT = "https://routellm.abacus.ai/v1/chat/completions"
-DEFAULT_ABACUS_MODEL = "gpt-5"
+DEFAULT_ABACUS_MODEL = "Qwen/Qwen2.5-72B-Instruct"
+MAX_CONTEXT_CHARS = 18000
 
 
 def clean_catalog_url(url: str) -> str:
@@ -33,7 +35,76 @@ def build_system_prompt(catalog_text: str) -> str:
         "4) Stelle bei Bedarf gezielte Rückfragen (Interessen, Vorkenntnisse, Zeit, Sprache, Prüfungsform).\n"
         "5) Gib konkrete Empfehlungen mit kurzer Begründung.\n\n"
         "KATALOG (Wissensbasis):\n"
-        f"{catalog_text[:120000]}"
+        f"{catalog_text[:MAX_CONTEXT_CHARS]}"
+    )
+
+
+def split_markdown_sections(text: str) -> List[Tuple[str, str]]:
+    sections = re.split(r"\n(?=#{1,3}\s)", text)
+    result: List[Tuple[str, str]] = []
+    for section in sections:
+        section = section.strip()
+        if not section:
+            continue
+        lines = section.splitlines()
+        title = lines[0].lstrip("#").strip() if lines[0].startswith("#") else "Allgemein"
+        body = "\n".join(lines[1:]).strip() if lines[0].startswith("#") else section
+        chunk = f"{title}\n{body}".strip()
+        if len(chunk) > 20:
+            result.append((title, chunk))
+    return result
+
+
+def build_targeted_catalog_context(catalog_text: str, user_query: str, max_chars: int = MAX_CONTEXT_CHARS) -> str:
+    """Wählt passende Katalog-Abschnitte aus, um 400-Fehler durch zu große Payloads zu vermeiden."""
+    sections = split_markdown_sections(catalog_text)
+    if not sections:
+        return catalog_text[:max_chars]
+
+    query_terms = {t for t in re.findall(r"[\wäöüÄÖÜß]{3,}", user_query.lower())}
+    if not query_terms:
+        return catalog_text[:max_chars]
+
+    scored: List[Tuple[int, str]] = []
+    for _, chunk in sections:
+        tokens = set(re.findall(r"[\wäöüÄÖÜß]{3,}", chunk.lower()))
+        score = len(query_terms & tokens)
+        scored.append((score, chunk))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+
+    selected: List[str] = []
+    total = 0
+    for score, chunk in scored:
+        if score <= 0 and selected:
+            continue
+        candidate = chunk[:2500]
+        if total + len(candidate) > max_chars:
+            break
+        selected.append(candidate)
+        total += len(candidate)
+        if len(selected) >= 8:
+            break
+
+    if not selected:
+        return catalog_text[:max_chars]
+
+    return "\n\n---\n\n".join(selected)
+
+
+def build_error_message(exc: Exception) -> str:
+    if isinstance(exc, requests.HTTPError) and exc.response is not None:
+        details = exc.response.text[:1000]
+        return (
+            "Beim Aufruf der Abacus API ist ein HTTP-Fehler aufgetreten. "
+            "Bitte prüfe API-Key, Modellnamen und erlaubte Parameter.\n\n"
+            f"Status: {exc.response.status_code}\n"
+            f"Details: {details}"
+        )
+    return (
+        "Beim Aufruf der Abacus API ist ein Fehler aufgetreten. "
+        "Bitte prüfe API-Key, URL und Modell.\n\n"
+        f"Fehler: {exc}"
     )
 
 
@@ -86,8 +157,10 @@ def llm_chat_abacus(
     }
     payload = {
         "model": model,
-        "messages": [{"role": "system", "content": system_prompt}, *history],
-        "temperature": 0.2,
+        "messages": [
+            {"role": "user", "content": f"Kontext für die Beratung:\n\n{system_prompt}"},
+            *history,
+        ],
         "stream": stream,
     }
 
@@ -164,20 +237,17 @@ def main() -> None:
                     for m in st.session_state.messages
                     if m["role"] in {"user", "assistant"}
                 ]
+                targeted_context = build_targeted_catalog_context(st.session_state["catalog_text"], user_prompt)
                 answer = llm_chat_abacus(
                     api_key=abacus_api_key,
                     model=abacus_model,
                     endpoint=abacus_endpoint,
-                    system_prompt=build_system_prompt(st.session_state["catalog_text"]),
+                    system_prompt=build_system_prompt(targeted_context),
                     history=history,
                     stream=abacus_stream,
                 )
             except Exception as exc:
-                answer = (
-                    "Beim Aufruf der Abacus API ist ein Fehler aufgetreten. "
-                    "Bitte prüfe API-Key, URL und Modell.\n\n"
-                    f"Fehler: {exc}"
-                )
+                answer = build_error_message(exc)
 
             st.markdown(answer)
 
