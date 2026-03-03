@@ -1,18 +1,20 @@
-# Seminarfinder-Chatbot (Streamlit + LLM API)
+# Seminarfinder-Chatbot (Streamlit + Abacus AI API)
 
-Diese App berät Studierende bei der Seminarwahl mit einem LLM und nutzt den Seminar-Katalog als Wissensbasis.
+Diese App berät Studierende bei der Seminarwahl mit einem LLM über **Abacus AI** und nutzt den Seminar-Katalog als Wissensbasis.
 
 ## Verhalten
 
 - Der Katalog wird **immer automatisch** aus `CATALOG_URL` geladen.
-- Der Chat läuft über eine OpenAI-kompatible Chat-Completions-API.
+- Der Chat nutzt die Abacus-AI-kompatible Chat-Completions-API.
 - Antworten sollen sich auf den Katalog stützen.
 
 ## Umgebungsvariablen
 
-- `OPENAI_API_KEY` (Pflicht)
-- `OPENAI_MODEL` (optional, Default: `gpt-4o-mini`)
-- `OPENAI_BASE_URL` (optional, Default: `https://api.openai.com/v1`)
+- `ABACUS_API_KEY` (Pflicht)
+  - Fallback: `OPENAI_API_KEY`
+- `ABACUS_API_URL` (optional, Default: `https://routellm.abacus.ai/v1/chat/completions`)
+- `ABACUS_MODEL` (optional, Default: `gpt-5`)
+- `ABACUS_STREAM` (optional, `true`/`false`, Default: `false`)
 - `CATALOG_URL` (optional, Default ist die vorgegebene Katalog-URL)
 
 ## Lokal starten
@@ -21,7 +23,7 @@ Diese App berät Studierende bei der Seminarwahl mit einem LLM und nutzt den Sem
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-export OPENAI_API_KEY="..."
+export ABACUS_API_KEY="..."
 streamlit run app.py
 ```
 
@@ -30,8 +32,17 @@ streamlit run app.py
 In den App-Secrets setzen:
 
 ```toml
-OPENAI_API_KEY = "..."
-OPENAI_MODEL = "gpt-4o-mini"
-OPENAI_BASE_URL = "https://api.openai.com/v1"
+ABACUS_API_KEY = "..."
+ABACUS_API_URL = "https://routellm.abacus.ai/v1/chat/completions"
+ABACUS_MODEL = "gpt-5"
+ABACUS_STREAM = "false"
 CATALOG_URL = "https://share.note.sx/2bfsuvcx#69oXW5Jp6sHy9PL05gRKQFyEVyjku5+VMjkVk96vQwo"
 ```
+
+## Hinweis zur Abacus-Beispielintegration
+
+Die Implementierung folgt dem von dir gezeigten Muster:
+
+- `Authorization: Bearer <api_key>`
+- `POST` auf `https://routellm.abacus.ai/v1/chat/completions`
+- optionales Streaming via `data: ...` Zeilen und `[DONE]`
