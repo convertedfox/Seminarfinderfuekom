@@ -12,7 +12,7 @@ import streamlit as st
 
 DEFAULT_CATALOG_FILE = "data/catalog.md"
 DEFAULT_ABACUS_ENDPOINT = "https://routellm.abacus.ai/v1/chat/completions"
-DEFAULT_ABACUS_MODEL = "gpt-5"
+DEFAULT_ABACUS_MODEL = "gpt-5-nano"
 DEFAULT_RESULT_COUNT = 3
 
 

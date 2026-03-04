@@ -15,7 +15,7 @@ Diese App berät Studierende bei der Seminarwahl mit einem LLM über **Abacus AI
 - `ABACUS_API_KEY` (Pflicht)
   - Fallback: `OPENAI_API_KEY`
 - `ABACUS_API_URL` (optional, Default: `https://routellm.abacus.ai/v1/chat/completions`)
-- `ABACUS_MODEL` (optional, Default: `gpt-5`)
+- `ABACUS_MODEL` (optional, Default: `gpt-5-nano`)
 - `ABACUS_STREAM` (optional, `true`/`false`, Default: `false`)
 - `CATALOG_FILE` (optional, Default: `data/catalog.md`)
 
@@ -36,7 +36,7 @@ In den App-Secrets setzen:
 ```toml
 ABACUS_API_KEY = "..."
 ABACUS_API_URL = "https://routellm.abacus.ai/v1/chat/completions"
-ABACUS_MODEL = "gpt-5"
+ABACUS_MODEL = "gpt-5-nano"
 ABACUS_STREAM = "false"
 CATALOG_FILE = "data/catalog.md"
 ```
