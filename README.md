@@ -9,6 +9,7 @@ Diese App berät Studierende bei der Seminarwahl mit einem LLM über **Abacus AI
 - Der Chat nutzt die Abacus-AI-kompatible Chat-Completions-API.
 - Antworten stützen sich auf den Katalog und bleiben im Chat kurz.
 - Passende Seminare werden als strukturierte Ergebnisse direkt unter dem Chat angezeigt.
+- Ergebnisse enthalten Filter-Chips und kompakte Badges (Kategorie, Dualis, Thema).
 
 ## Umgebungsvariablen
 

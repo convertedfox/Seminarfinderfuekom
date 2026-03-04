@@ -14,6 +14,12 @@ DEFAULT_CATALOG_FILE = "data/catalog.md"
 DEFAULT_ABACUS_ENDPOINT = "https://routellm.abacus.ai/v1/chat/completions"
 DEFAULT_ABACUS_MODEL = "gpt-5-nano"
 DEFAULT_RESULT_COUNT = 3
+TOPIC_KEYWORDS: Dict[str, List[str]] = {
+    "Stress": ["stress", "resilienz", "burnout", "achtsamkeit", "mindfulness", "regeneration"],
+    "Karriere": ["karriere", "laufbahn", "beförderung", "entwicklung", "sichtbar"],
+    "Kommunikation": ["kommunikation", "gespräch", "rhetorik", "präsent", "stimme", "verhand"],
+    "Führung": ["führung", "team", "leadership", "change", "coaching", "diversity"],
+}
 
 
 @dataclass(frozen=True)
@@ -181,6 +187,12 @@ def _tokenize(text: str) -> List[str]:
     return [token for token in re.findall(r"[a-zA-ZäöüÄÖÜß]{3,}", text.lower())]
 
 
+def seminar_topics(seminar: Seminar) -> List[str]:
+    searchable = " ".join([seminar.title, seminar.category, seminar.focus, seminar.content]).lower()
+    topics = [topic for topic, keywords in TOPIC_KEYWORDS.items() if any(keyword in searchable for keyword in keywords)]
+    return topics
+
+
 def _fallback_recommendations(user_prompt: str, seminars: List[Seminar], top_n: int) -> List[str]:
     query_tokens = _tokenize(user_prompt)
     if not query_tokens:
@@ -332,20 +344,60 @@ def render_recommendations(
         st.info("Noch keine Ergebnisse. Beschreibe kurz dein Ziel, dann zeige ich passende Seminare an.")
         return
 
-    for seminar_id in recommended_ids:
+    available_topics = sorted(
+        {
+            topic
+            for seminar_id in recommended_ids
+            if seminar_id in seminars_by_id
+            for topic in seminar_topics(seminars_by_id[seminar_id])
+        }
+    )
+    selected_topics: List[str] = []
+    if available_topics:
+        if hasattr(st, "pills"):
+            selected_topics = st.pills(
+                "Filter-Chips",
+                options=available_topics,
+                selection_mode="multi",
+                key="recommendation_topic_filters",
+            ) or []
+        else:
+            selected_topics = st.multiselect(
+                "Filter-Chips",
+                options=available_topics,
+                key="recommendation_topic_filters",
+            )
+
+    filtered_ids = recommended_ids
+    if selected_topics:
+        filtered_ids = [
+            seminar_id
+            for seminar_id in recommended_ids
+            if seminar_id in seminars_by_id
+            and any(topic in seminar_topics(seminars_by_id[seminar_id]) for topic in selected_topics)
+        ]
+        if not filtered_ids:
+            st.info("Für die gewählten Filter-Chips gibt es aktuell keine Treffer.")
+            return
+
+    for seminar_id in filtered_ids:
         seminar = seminars_by_id.get(seminar_id)
         if not seminar:
             continue
 
         with st.container(border=True):
             st.markdown(f"#### {seminar.title}")
-            st.caption(seminar.category)
+            badges = [f"Kategorie: {seminar.category}"]
+            seminar_dualis = seminar.dualis_code or "Keine Angabe"
+            badges.append(f"Dualis: {seminar_dualis}")
+            for topic in seminar_topics(seminar)[:3]:
+                badges.append(f"Thema: {topic}")
+            st.markdown(" ".join(f"`{badge}`" for badge in badges))
             reason = reasons.get(seminar.seminar_id, "")
             if reason:
                 st.markdown(f"**Warum passend:** {reason}")
             st.markdown(f"**Fokus:** {seminar.focus or 'Keine Angabe'}")
             st.markdown(f"**Voraussetzungen:** {seminar.requirements or 'Keine Angabe'}")
-            st.write(f"Dualis: {seminar.dualis_code or 'Keine Angabe'}")
 
             with st.expander("Details anzeigen"):
                 if seminar.content:
@@ -360,7 +412,12 @@ def render_recommendations(
 
 
 def main() -> None:
-    st.set_page_config(page_title="Seminarfinder-Chatbot", page_icon="🎓", layout="wide")
+    st.set_page_config(
+        page_title="Seminarfinder-Chatbot",
+        page_icon="🎓",
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
     st.title("🎓 Seminarfinder-Chatbot")
     st.write("Seminarfinder für die Fükom-Seminare.")
 
