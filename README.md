@@ -7,7 +7,8 @@ Diese App berät Studierende bei der Seminarwahl mit einem LLM über **Abacus AI
 - Der Katalog wird **immer automatisch** aus einer Datei im Repo geladen.
 - Standardpfad: `data/catalog.md`
 - Der Chat nutzt die Abacus-AI-kompatible Chat-Completions-API.
-- Antworten sollen sich auf den Katalog stützen.
+- Antworten stützen sich auf den Katalog und bleiben im Chat kurz.
+- Passende Seminare werden als strukturierte Ergebnisse direkt unter dem Chat angezeigt.
 
 ## Umgebungsvariablen
 

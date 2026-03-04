@@ -1,5 +1,8 @@
 import json
 import os
+import re
+import unicodedata
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List
@@ -10,6 +13,20 @@ import streamlit as st
 DEFAULT_CATALOG_FILE = "data/catalog.md"
 DEFAULT_ABACUS_ENDPOINT = "https://routellm.abacus.ai/v1/chat/completions"
 DEFAULT_ABACUS_MODEL = "gpt-5"
+DEFAULT_RESULT_COUNT = 3
+
+
+@dataclass(frozen=True)
+class Seminar:
+    seminar_id: str
+    title: str
+    category: str
+    focus: str
+    content: str
+    methods: str
+    requirements: str
+    dualis_code: str
+    raw_markdown: str
 
 
 @lru_cache(maxsize=4)
@@ -20,7 +37,208 @@ def load_catalog_from_file(file_path: str) -> str:
     return catalog_text
 
 
-def build_system_prompt(catalog_text: str) -> str:
+def _slugify(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value)
+    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^a-zA-Z0-9]+", "-", ascii_text.lower()).strip("-")
+    return slug or "seminar"
+
+
+def _collect_field_values(block_lines: List[str], keywords: List[str]) -> str:
+    sections: Dict[str, List[str]] = {}
+    current_key = ""
+
+    for raw_line in block_lines:
+        line = raw_line.strip()
+        match = re.match(r"^\*\*(.+?):\*\*\s*(.*)$", line)
+        if match:
+            current_key = match.group(1).strip().lower()
+            first_content = match.group(2).strip()
+            if first_content:
+                sections.setdefault(current_key, []).append(first_content)
+            continue
+
+        if current_key and line:
+            sections.setdefault(current_key, []).append(line)
+
+    collected_parts: List[str] = []
+    for key, values in sections.items():
+        if any(keyword in key for keyword in keywords):
+            collected_parts.extend(values)
+
+    return "\n".join(collected_parts).strip()
+
+
+def _normalize_dualis_code(raw_value: str) -> str:
+    if not raw_value:
+        return ""
+    first_line = raw_value.splitlines()[0].strip()
+    match = re.search(r"[A-Z]{3}\d+(?:\.\d+)+", first_line)
+    return match.group(0) if match else first_line
+
+
+def parse_seminars_from_catalog(catalog_text: str) -> List[Seminar]:
+    seminars: List[Seminar] = []
+    used_ids: Dict[str, int] = {}
+    current_category = ""
+    current_title = ""
+    current_lines: List[str] = []
+
+    def flush_current() -> None:
+        nonlocal current_title, current_lines
+        if not current_title:
+            return
+
+        base_slug = _slugify(current_title)
+        used_ids[base_slug] = used_ids.get(base_slug, 0) + 1
+        seminar_id = base_slug if used_ids[base_slug] == 1 else f"{base_slug}-{used_ids[base_slug]}"
+
+        focus = _collect_field_values(current_lines, ["fokus", "profil", "ziele"])
+        content = _collect_field_values(current_lines, ["inhalte", "inhalt", "setting"])
+        methods = _collect_field_values(current_lines, ["methoden"])
+        requirements = _collect_field_values(current_lines, ["voraussetzungen", "besonderheiten"])
+        dualis_code = _normalize_dualis_code(_collect_field_values(current_lines, ["dualis"]))
+        raw_markdown = "\n".join(current_lines).strip()
+        if not focus:
+            first_line = next((line.strip() for line in current_lines if line.strip()), "")
+            focus = first_line
+
+        seminars.append(
+            Seminar(
+                seminar_id=seminar_id,
+                title=current_title,
+                category=current_category or "Ohne Kategorie",
+                focus=focus,
+                content=content,
+                methods=methods,
+                requirements=requirements,
+                dualis_code=dualis_code,
+                raw_markdown=raw_markdown,
+            )
+        )
+        current_title = ""
+        current_lines = []
+
+    for line in catalog_text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("### "):
+            flush_current()
+            current_category = stripped[4:].strip()
+            continue
+
+        if stripped.startswith("#### "):
+            flush_current()
+            current_title = stripped[5:].strip()
+            current_lines = []
+            continue
+
+        if current_title:
+            current_lines.append(line)
+
+    flush_current()
+    return seminars
+
+
+def build_seminar_reference(seminars: List[Seminar]) -> str:
+    lines = []
+    for seminar in seminars:
+        focus = seminar.focus.replace("\n", " ").strip()
+        requirements = seminar.requirements.replace("\n", " ").strip()
+        lines.append(
+            f"- id={seminar.seminar_id} | titel={seminar.title} | kategorie={seminar.category} | "
+            f"fokus={focus[:240]} | voraussetzungen={requirements[:160]}"
+        )
+    return "\n".join(lines)
+
+
+def _extract_first_json_object(raw_text: str) -> Dict:
+    cleaned = raw_text.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned, flags=re.DOTALL).strip()
+
+    try:
+        parsed = json.loads(cleaned)
+        if isinstance(parsed, dict):
+            return parsed
+    except json.JSONDecodeError:
+        pass
+
+    decoder = json.JSONDecoder()
+    for index, character in enumerate(cleaned):
+        if character != "{":
+            continue
+        try:
+            parsed, _ = decoder.raw_decode(cleaned[index:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+
+    return {}
+
+
+def _tokenize(text: str) -> List[str]:
+    return [token for token in re.findall(r"[a-zA-ZäöüÄÖÜß]{3,}", text.lower())]
+
+
+def _fallback_recommendations(user_prompt: str, seminars: List[Seminar], top_n: int) -> List[str]:
+    query_tokens = _tokenize(user_prompt)
+    if not query_tokens:
+        return []
+
+    scored: List[tuple[int, str]] = []
+    for seminar in seminars:
+        searchable = " ".join(
+            [seminar.title, seminar.category, seminar.focus, seminar.content, seminar.requirements]
+        ).lower()
+        score = sum(searchable.count(token) for token in query_tokens)
+        if score > 0:
+            scored.append((score, seminar.seminar_id))
+
+    scored.sort(reverse=True)
+    return [seminar_id for _, seminar_id in scored[:top_n]]
+
+
+def parse_recommendation_response(
+    raw_text: str, seminars: List[Seminar], user_prompt: str, top_n: int
+) -> tuple[str, List[str], Dict[str, str]]:
+    parsed = _extract_first_json_object(raw_text)
+    valid_ids = {seminar.seminar_id for seminar in seminars}
+    recommended_ids: List[str] = []
+
+    candidate_ids = parsed.get("recommended_ids", [])
+    if isinstance(candidate_ids, list):
+        for item in candidate_ids:
+            if isinstance(item, str) and item in valid_ids and item not in recommended_ids:
+                recommended_ids.append(item)
+            if len(recommended_ids) >= top_n:
+                break
+
+    if not recommended_ids:
+        recommended_ids = _fallback_recommendations(user_prompt=user_prompt, seminars=seminars, top_n=top_n)
+
+    short_answer = parsed.get("short_answer", "").strip() if isinstance(parsed.get("short_answer"), str) else ""
+    if not short_answer:
+        if recommended_ids:
+            short_answer = "Ich habe drei passende Seminare herausgesucht. Du findest sie unten als Karten."
+        else:
+            short_answer = (
+                "Ich habe dazu noch keine klar passenden Seminare gefunden. "
+                "Nenne mir bitte Thema, Ziel oder bevorzugtes Format."
+            )
+
+    reasons_raw = parsed.get("why", {})
+    reasons: Dict[str, str] = {}
+    if isinstance(reasons_raw, dict):
+        for seminar_id, reason in reasons_raw.items():
+            if seminar_id in valid_ids and isinstance(reason, str):
+                reasons[seminar_id] = reason.strip()
+
+    return short_answer, recommended_ids, reasons
+
+
+def build_system_prompt(catalog_text: str, seminars: List[Seminar], top_n: int) -> str:
+    seminar_reference = build_seminar_reference(seminars)
     return (
         "Du bist ein Studienberater für Seminare. "
         "Deine Aufgabe ist, Studierende bei der Auswahl passender Seminare zu unterstützen.\n\n"
@@ -29,7 +247,14 @@ def build_system_prompt(catalog_text: str) -> str:
         "2) Verwende ausschließlich Informationen aus dem bereitgestellten Katalog.\n"
         "3) Wenn Informationen fehlen, sage das transparent.\n"
         "4) Stelle bei Bedarf gezielte Rückfragen (Interessen, Vorkenntnisse, Zeit, Sprache, Prüfungsform).\n"
-        "5) Gib konkrete Empfehlungen mit kurzer Begründung.\n\n"
+        "5) Gib konkrete Empfehlungen mit kurzer Begründung.\n"
+        "6) Antworte ausschließlich als JSON-Objekt mit den Feldern:\n"
+        '   - "short_answer": kurzer Text (max. 3-5 Sätze)\n'
+        f'   - "recommended_ids": Liste mit maximal {top_n} Seminar-IDs aus der Referenzliste\n'
+        '   - "why": Objekt mit optionalen Kurzbegründungen je Seminar-ID\n'
+        "7) Gib keine IDs aus, die nicht in der Referenzliste stehen.\n\n"
+        "SEMINAR-REFERENZLISTE:\n"
+        f"{seminar_reference}\n\n"
         "KATALOG (Wissensbasis):\n"
         f"{catalog_text[:120000]}"
     )
@@ -99,6 +324,41 @@ def llm_chat_abacus(
     return _extract_non_stream_response(response.json())
 
 
+def render_recommendations(
+    seminars_by_id: Dict[str, Seminar], recommended_ids: List[str], reasons: Dict[str, str]
+) -> None:
+    st.subheader("Empfohlene Seminare")
+    if not recommended_ids:
+        st.info("Noch keine Ergebnisse. Beschreibe kurz dein Ziel, dann zeige ich passende Seminare an.")
+        return
+
+    for seminar_id in recommended_ids:
+        seminar = seminars_by_id.get(seminar_id)
+        if not seminar:
+            continue
+
+        with st.container(border=True):
+            st.markdown(f"#### {seminar.title}")
+            st.caption(seminar.category)
+            reason = reasons.get(seminar.seminar_id, "")
+            if reason:
+                st.markdown(f"**Warum passend:** {reason}")
+            st.markdown(f"**Fokus:** {seminar.focus or 'Keine Angabe'}")
+            st.markdown(f"**Voraussetzungen:** {seminar.requirements or 'Keine Angabe'}")
+            st.write(f"Dualis: {seminar.dualis_code or 'Keine Angabe'}")
+
+            with st.expander("Details anzeigen"):
+                if seminar.content:
+                    st.markdown("**Inhalte**")
+                    st.markdown(seminar.content)
+                if seminar.methods:
+                    st.markdown("**Methoden**")
+                    st.markdown(seminar.methods)
+                if seminar.raw_markdown:
+                    st.markdown("**Katalogauszug**")
+                    st.markdown(seminar.raw_markdown)
+
+
 def main() -> None:
     st.set_page_config(page_title="Seminarfinder-Chatbot", page_icon="🎓", layout="wide")
     st.title("🎓 Seminarfinder-Chatbot")
@@ -130,6 +390,17 @@ def main() -> None:
             )
             st.stop()
 
+    if "seminars" not in st.session_state:
+        st.session_state["seminars"] = parse_seminars_from_catalog(st.session_state["catalog_text"])
+        if not st.session_state["seminars"]:
+            st.error("Im Katalog wurden keine Seminare erkannt. Bitte prüfe die Struktur der Katalogdatei.")
+            st.stop()
+
+    if "last_recommendations" not in st.session_state:
+        st.session_state["last_recommendations"] = []
+    if "last_reasons" not in st.session_state:
+        st.session_state["last_reasons"] = {}
+
     if not abacus_api_key:
         st.error("ABACUS_API_KEY ist nicht gesetzt. Bitte als Umgebungsvariable konfigurieren.")
         st.stop()
@@ -146,40 +417,59 @@ def main() -> None:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
+    seminars_by_id = {seminar.seminar_id: seminar for seminar in st.session_state["seminars"]}
     user_prompt = st.chat_input("z. B. Ich möchte meine Selbstsicherheit steigern.")
-    if not user_prompt:
-        return
+    if user_prompt:
+        st.session_state.messages.append({"role": "user", "content": user_prompt})
+        with st.chat_message("user"):
+            st.markdown(user_prompt)
 
-    st.session_state.messages.append({"role": "user", "content": user_prompt})
-    with st.chat_message("user"):
-        st.markdown(user_prompt)
+        with st.chat_message("assistant"):
+            with st.spinner("Ich suche passende Seminare im Katalog …"):
+                try:
+                    history = [
+                        {"role": m["role"], "content": m["content"]}
+                        for m in st.session_state.messages
+                        if m["role"] in {"user", "assistant"}
+                    ]
+                    raw_answer = llm_chat_abacus(
+                        api_key=abacus_api_key,
+                        model=abacus_model,
+                        endpoint=abacus_endpoint,
+                        system_prompt=build_system_prompt(
+                            catalog_text=st.session_state["catalog_text"],
+                            seminars=st.session_state["seminars"],
+                            top_n=DEFAULT_RESULT_COUNT,
+                        ),
+                        history=history,
+                        stream=abacus_stream,
+                    )
+                    answer, recommended_ids, reasons = parse_recommendation_response(
+                        raw_text=raw_answer,
+                        seminars=st.session_state["seminars"],
+                        user_prompt=user_prompt,
+                        top_n=DEFAULT_RESULT_COUNT,
+                    )
+                    st.session_state["last_recommendations"] = recommended_ids
+                    st.session_state["last_reasons"] = reasons
+                except Exception as exc:
+                    answer = (
+                        "Beim Aufruf der Abacus API ist ein Fehler aufgetreten. "
+                        "Bitte prüfe API-Key, URL und Modell.\n\n"
+                        f"Fehler: {exc}"
+                    )
+                    st.session_state["last_recommendations"] = []
+                    st.session_state["last_reasons"] = {}
 
-    with st.chat_message("assistant"):
-        with st.spinner("Ich suche passende Seminare im Katalog …"):
-            try:
-                history = [
-                    {"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages
-                    if m["role"] in {"user", "assistant"}
-                ]
-                answer = llm_chat_abacus(
-                    api_key=abacus_api_key,
-                    model=abacus_model,
-                    endpoint=abacus_endpoint,
-                    system_prompt=build_system_prompt(st.session_state["catalog_text"]),
-                    history=history,
-                    stream=abacus_stream,
-                )
-            except Exception as exc:
-                answer = (
-                    "Beim Aufruf der Abacus API ist ein Fehler aufgetreten. "
-                    "Bitte prüfe API-Key, URL und Modell.\n\n"
-                    f"Fehler: {exc}"
-                )
+                st.markdown(answer)
 
-            st.markdown(answer)
+        st.session_state.messages.append({"role": "assistant", "content": answer})
 
-    st.session_state.messages.append({"role": "assistant", "content": answer})
+    render_recommendations(
+        seminars_by_id=seminars_by_id,
+        recommended_ids=st.session_state["last_recommendations"],
+        reasons=st.session_state["last_reasons"],
+    )
 
 
 if __name__ == "__main__":
