@@ -3,7 +3,6 @@ import os
 import re
 import unicodedata
 from dataclasses import dataclass
-from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List
 
@@ -99,8 +98,13 @@ class Seminar:
     raw_markdown: str
 
 
-@lru_cache(maxsize=4)
-def load_catalog_from_file(file_path: str) -> str:
+def catalog_mtime(file_path: str) -> float:
+    return Path(file_path).stat().st_mtime
+
+
+@st.cache_data(show_spinner=False)
+def load_catalog_from_file(file_path: str, file_mtime: float) -> str:
+    del file_mtime
     catalog_text = Path(file_path).read_text(encoding="utf-8")
     if not catalog_text.strip():
         raise ValueError("Katalogdatei ist leer.")
@@ -147,6 +151,7 @@ def _normalize_dualis_code(raw_value: str) -> str:
     return match.group(0) if match else first_line
 
 
+@st.cache_data(show_spinner=False)
 def parse_seminars_from_catalog(catalog_text: str) -> List[Seminar]:
     seminars: List[Seminar] = []
     used_ids: Dict[str, int] = {}
@@ -500,22 +505,24 @@ def main() -> None:
         st.text_input("Streaming", value="Aktiv" if abacus_stream else "Inaktiv", disabled=True)
         st.text_input("ABACUS_API_KEY gesetzt", value="Ja" if abacus_api_key else "Nein", disabled=True)
 
-    if "catalog_text" not in st.session_state:
-        try:
-            st.session_state["catalog_text"] = load_catalog_from_file(catalog_file)
-        except Exception as exc:
-            st.error(
-                "Katalog konnte nicht geladen werden. "
-                "Bitte prüfe CATALOG_FILE und den Dateipfad.\n\n"
-                f"Fehler: {exc}"
-            )
-            st.stop()
+    try:
+        file_mtime = catalog_mtime(catalog_file)
+        catalog_cache_key = (catalog_file, file_mtime)
+        if st.session_state.get("catalog_cache_key") != catalog_cache_key:
+            st.session_state["catalog_text"] = load_catalog_from_file(catalog_file, file_mtime)
+            st.session_state["seminars"] = parse_seminars_from_catalog(st.session_state["catalog_text"])
+            st.session_state["catalog_cache_key"] = catalog_cache_key
+    except Exception as exc:
+        st.error(
+            "Katalog konnte nicht geladen werden. "
+            "Bitte prüfe CATALOG_FILE und den Dateipfad.\n\n"
+            f"Fehler: {exc}"
+        )
+        st.stop()
 
-    if "seminars" not in st.session_state:
-        st.session_state["seminars"] = parse_seminars_from_catalog(st.session_state["catalog_text"])
-        if not st.session_state["seminars"]:
-            st.error("Im Katalog wurden keine Seminare erkannt. Bitte prüfe die Struktur der Katalogdatei.")
-            st.stop()
+    if not st.session_state.get("seminars"):
+        st.error("Im Katalog wurden keine Seminare erkannt. Bitte prüfe die Struktur der Katalogdatei.")
+        st.stop()
 
     if "last_recommendations" not in st.session_state:
         st.session_state["last_recommendations"] = []
