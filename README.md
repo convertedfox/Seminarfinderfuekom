@@ -4,7 +4,8 @@ Diese App berät Studierende bei der Seminarwahl mit einem LLM über **Abacus AI
 
 ## Verhalten
 
-- Der Katalog wird **immer automatisch** aus `CATALOG_URL` geladen.
+- Der Katalog wird **immer automatisch** aus einer Datei im Repo geladen.
+- Standardpfad: `data/catalog.md`
 - Der Chat nutzt die Abacus-AI-kompatible Chat-Completions-API.
 - Antworten sollen sich auf den Katalog stützen.
 
@@ -15,7 +16,7 @@ Diese App berät Studierende bei der Seminarwahl mit einem LLM über **Abacus AI
 - `ABACUS_API_URL` (optional, Default: `https://routellm.abacus.ai/v1/chat/completions`)
 - `ABACUS_MODEL` (optional, Default: `gpt-5`)
 - `ABACUS_STREAM` (optional, `true`/`false`, Default: `false`)
-- `CATALOG_URL` (optional, Default ist die vorgegebene Katalog-URL)
+- `CATALOG_FILE` (optional, Default: `data/catalog.md`)
 
 ## Lokal starten
 
@@ -36,7 +37,7 @@ ABACUS_API_KEY = "..."
 ABACUS_API_URL = "https://routellm.abacus.ai/v1/chat/completions"
 ABACUS_MODEL = "gpt-5"
 ABACUS_STREAM = "false"
-CATALOG_URL = "https://share.note.sx/2bfsuvcx#69oXW5Jp6sHy9PL05gRKQFyEVyjku5+VMjkVk96vQwo"
+CATALOG_FILE = "data/catalog.md"
 ```
 
 ## Hinweis zur Abacus-Beispielintegration

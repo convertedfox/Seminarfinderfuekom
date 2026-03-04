@@ -1,25 +1,23 @@
 import json
 import os
 from functools import lru_cache
+from pathlib import Path
 from typing import Dict, List
 
 import requests
 import streamlit as st
 
-DEFAULT_CATALOG_URL = "https://share.note.sx/2bfsuvcx#69oXW5Jp6sHy9PL05gRKQFyEVyjku5+VMjkVk96vQwo"
+DEFAULT_CATALOG_FILE = "data/catalog.md"
 DEFAULT_ABACUS_ENDPOINT = "https://routellm.abacus.ai/v1/chat/completions"
 DEFAULT_ABACUS_MODEL = "gpt-5"
 
 
-def clean_catalog_url(url: str) -> str:
-    return url.split("#", 1)[0]
-
-
 @lru_cache(maxsize=4)
-def load_catalog_from_url(url: str) -> str:
-    response = requests.get(clean_catalog_url(url), timeout=30)
-    response.raise_for_status()
-    return response.text
+def load_catalog_from_file(file_path: str) -> str:
+    catalog_text = Path(file_path).read_text(encoding="utf-8")
+    if not catalog_text.strip():
+        raise ValueError("Katalogdatei ist leer.")
+    return catalog_text
 
 
 def build_system_prompt(catalog_text: str) -> str:
@@ -104,9 +102,9 @@ def llm_chat_abacus(
 def main() -> None:
     st.set_page_config(page_title="Seminarfinder-Chatbot", page_icon="🎓", layout="wide")
     st.title("🎓 Seminarfinder-Chatbot")
-    st.write("LLM-basierter Studienberater mit Abacus AI API und Seminar-Katalog als Wissensbasis.")
+    st.write("Seminarfinder für die Fükom-Seminare.")
 
-    catalog_url = os.getenv("CATALOG_URL", DEFAULT_CATALOG_URL)
+    catalog_file = os.getenv("CATALOG_FILE", DEFAULT_CATALOG_FILE)
     abacus_api_key = os.getenv("ABACUS_API_KEY", os.getenv("OPENAI_API_KEY", ""))
     abacus_endpoint = os.getenv("ABACUS_API_URL", DEFAULT_ABACUS_ENDPOINT)
     abacus_model = os.getenv("ABACUS_MODEL", DEFAULT_ABACUS_MODEL)
@@ -114,8 +112,8 @@ def main() -> None:
 
     with st.sidebar:
         st.header("Konfiguration")
-        st.caption("Der Katalog wird immer automatisch aus der URL geladen.")
-        st.text_input("Katalog-URL", value=catalog_url, disabled=True)
+        st.caption("Der Katalog wird immer automatisch aus der Datei im Repo geladen.")
+        st.text_input("Katalog-Datei", value=catalog_file, disabled=True)
         st.text_input("Abacus API URL", value=abacus_endpoint, disabled=True)
         st.text_input("Abacus Modell", value=abacus_model, disabled=True)
         st.text_input("Streaming", value="Aktiv" if abacus_stream else "Inaktiv", disabled=True)
@@ -123,11 +121,11 @@ def main() -> None:
 
     if "catalog_text" not in st.session_state:
         try:
-            st.session_state["catalog_text"] = load_catalog_from_url(catalog_url)
+            st.session_state["catalog_text"] = load_catalog_from_file(catalog_file)
         except Exception as exc:
             st.error(
                 "Katalog konnte nicht geladen werden. "
-                "Bitte prüfe CATALOG_URL oder die Erreichbarkeit der Quelle.\n\n"
+                "Bitte prüfe CATALOG_FILE und den Dateipfad.\n\n"
                 f"Fehler: {exc}"
             )
             st.stop()

@@ -669,11 +669,15 @@ name = "seminarfinderfuekom"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "requests" },
     { name = "streamlit" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "streamlit", specifier = ">=1.55.0" }]
+requires-dist = [
+    { name = "requests", specifier = ">=2.31.0" },
+    { name = "streamlit", specifier = ">=1.55.0" },
+]
 
 [[package]]
 name = "six"
