@@ -68,7 +68,7 @@ Stand: 01.10.
 **Dualis:** XMX0101
 
 #### Besser mit Stress umgehen
-**Fokus:** Grenzen setzen, Resilienz aufbauen, gesund leistungsfähig bleiben; auch für Führungs-/Teamkontext.  
+**Fokus:** Grenzen setzen, Resilienz aufbauen, gesund und leistungsfähig bleiben; auch für Führungs-/Teamkontext.  
 **Inhalte (Auszug):**
 - Selbstführung/Selbstfürsorge, Dynamiken erkennen
 - Ressourcen- und lösungsorientierte Kommunikation/Führung
