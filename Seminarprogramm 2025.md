@@ -307,3 +307,9 @@ Stand: 01.10.
 **Methoden:** Input, Einzel-/Gruppenarbeit, Plenumsdiskussion, Rollenspiele.  
 **Voraussetzungen:** Interesse am Thema; keine Vorkenntnisse erforderlich.  
 **Dualis:** XMX01010.77
+
+#### Peter Pan Syndrom überwinden
+**Fokus:** Persönliche Reife als Mann überwinden  
+**Methoden:** Reflexion, Bücher lesen, Ziele setzen
+**Voraussetzungen:** Interesse am Thema; keine Vorkenntnisse erforderlich.  
+**Dualis:** XMX01010.77
