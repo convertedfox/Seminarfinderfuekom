@@ -19,12 +19,6 @@ Stand: 01.10.
 
 ### 1) Eigene Ressourcen einsetzen & Persönlichkeit entwickeln
 
-#### Peter-Pan-Syndrom überwinden
-**Fokus:** Persönliche Reife als Mann überwinden  
-**Methoden:** Reflexion, Bücher lesen, Ziele setzen
-**Voraussetzungen:** Interesse am Thema; keine Vorkenntnisse erforderlich.  
-**Dualis:** XMX01010.78
-
 #### Personal Leadership Development
 **Profil:** Persönliche Stärken/Werte erkennen, Karriereanker, passungsorientiertes Laufbahndesign, authentisches Auftreten im Personalentwicklungsgespräch.  
 **Inhalte:**
@@ -40,7 +34,7 @@ Stand: 01.10.
 **Voraussetzungen:** Bereitschaft zur aktiven Mitarbeit, Selbstreflexion, eigene Themen einbringen.  
 **Dualis:** XMX0101
 
-#### Erfolg beginnt im Kopf – Was wir von Spitzensportlern lernen können
+#### Erfolg beginnt im Kopf – Was wir von Spitzensportlern und alten Haudegen lernen können
 **Ziele:** Mentale Strategien für Herausforderungen/Drucksituationen; Regeneration, Emotionsregulation, Selbststeuerung.  
 **Inhalte:**
 - Psychologisches Hintergrundwissen zu Leistungssituationen
