@@ -1,6 +1,6 @@
-# Seminarfinder-Chatbot (Streamlit + Abacus AI API)
+# Seminarfinder-Chatbot
 
-Diese App berät Studierende bei der Seminarwahl mit einem LLM über **Abacus AI** und nutzt den Seminar-Katalog als Wissensbasis.
+Diese App berät Studierende bei der Seminarwahl mit einem LLM und nutzt den Seminar-Katalog als Wissensbasis.
 
 ## Verhalten
 
