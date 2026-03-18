@@ -19,6 +19,13 @@ Stand: 01.10.
 
 ### 1) Eigene Ressourcen einsetzen & Persönlichkeit entwickeln
 
+#### Peter-Pan-Syndrom überwinden
+**Fokus:** Persönliche Reife als Mann überwinden  
+**Methoden:** Reflexion, Bücher lesen, Ziele setzen
+**Voraussetzungen:** Interesse am Thema; keine Vorkenntnisse erforderlich.  
+**Dualis:** XMX01010.78
+
+
 #### Personal Leadership Development
 **Profil:** Persönliche Stärken/Werte erkennen, Karriereanker, passungsorientiertes Laufbahndesign, authentisches Auftreten im Personalentwicklungsgespräch.  
 **Inhalte:**
