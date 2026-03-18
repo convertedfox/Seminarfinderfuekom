@@ -19,6 +19,12 @@ Stand: 01.10.
 
 ### 1) Eigene Ressourcen einsetzen & Persönlichkeit entwickeln
 
+#### Peter-Pan-Syndrom überwinden
+**Fokus:** Persönliche Reife als Mann überwinden  
+**Methoden:** Reflexion, Bücher lesen, Ziele setzen
+**Voraussetzungen:** Interesse am Thema; keine Vorkenntnisse erforderlich.  
+**Dualis:** XMX01010.78
+
 #### Personal Leadership Development
 **Profil:** Persönliche Stärken/Werte erkennen, Karriereanker, passungsorientiertes Laufbahndesign, authentisches Auftreten im Personalentwicklungsgespräch.  
 **Inhalte:**
@@ -305,11 +311,5 @@ Stand: 01.10.
 #### KI-Kompetenz: Weit mehr als geschicktes Prompting
 **Fokus:** Technische Grundlagen von KI + Anwendungsfelder; ethische/gesellschaftliche Fragen (Bias/Fairness/Transparenz/Verantwortung), Arbeit/Recht/Gesellschaft, ökologische Folgen; Fallstudien & Rollenspiele.  
 **Methoden:** Input, Einzel-/Gruppenarbeit, Plenumsdiskussion, Rollenspiele.  
-**Voraussetzungen:** Interesse am Thema; keine Vorkenntnisse erforderlich.  
-**Dualis:** XMX01010.77
-
-#### Peter Pan Syndrom überwinden
-**Fokus:** Persönliche Reife als Mann überwinden  
-**Methoden:** Reflexion, Bücher lesen, Ziele setzen
 **Voraussetzungen:** Interesse am Thema; keine Vorkenntnisse erforderlich.  
 **Dualis:** XMX01010.77
